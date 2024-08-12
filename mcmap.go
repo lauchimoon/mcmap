@@ -245,17 +245,23 @@ func encodeMap(m map[Point]MapBlock) {
 }
 
 func main() {
+	log.SetFlags(0)
 	args := os.Args
+	progName := args[0]
+	if len(args) < 2 {
+		log.Fatalf("usage: %s <image.png>", progName)
+	}
+
 	filename := args[1]
 	rawImage, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("there was an error: %v", err)
+		log.Fatalf("%s: %v", progName, err)
 	}
 	defer rawImage.Close()
 
 	img, err := png.Decode(rawImage)
 	if err != nil {
-		log.Fatalf("there was an error: %v", err)
+		log.Fatalf("%s: %v", progName, err)
 	}
 
 	img = resizeImage(img, 128, 128)
