@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"flag"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -269,30 +271,7 @@ func encodeMap(m map[Point]MapBlock) {
 	png.Encode(exported, newImage)
 }
 
-func main() {
-	log.SetFlags(0)
-	args := os.Args
-	progName := args[0]
-	if len(args) < 2 {
-		log.Fatalf("usage: %s <image.png>", progName)
-	}
-
-	filename := args[1]
-	rawImage, err := os.Open(filename)
-	if err != nil {
-		log.Fatalf("%s: %v", progName, err)
-	}
-	defer rawImage.Close()
-
-	img, err := png.Decode(rawImage)
-	if err != nil {
-		log.Fatalf("%s: %v", progName, err)
-	}
-
-	img = resizeImage(img, 128, 128)
-	mapp := generateMap(img)
-	//encodeMap(mapp)
-
+func export(m map[Point]MapBlock, id uint) error {
 	// Prepare to export map to nbt file
 	exportMap := Map{
 		ZCenter:           0,
@@ -310,7 +289,7 @@ func main() {
 	for y := 0; y < 128; y++ {
 		for x := 0; x < 128; x++ {
 			p := NewPoint(x, y)
-			exportMap.Colors = append(exportMap.Colors, mapp[p].Code)
+			exportMap.Colors = append(exportMap.Colors, m[p].Code)
 		}
 	}
 
@@ -318,9 +297,9 @@ func main() {
 	exportData := MapData{3955, exportMap}
 	var buffNBT bytes.Buffer
 	encoder := nbt.NewEncoder(&buffNBT)
-	err = encoder.Encode(exportData, "")
+	err := encoder.Encode(exportData, "")
 	if err != nil {
-		log.Fatalf("%s: %v", progName, err)
+		return err
 	}
 
 	var buffGz bytes.Buffer
@@ -328,11 +307,43 @@ func main() {
 	gw.Write(buffNBT.Bytes())
 	gw.Close()
 
-	f, err := os.Create("map_0.dat")
+	f, err := os.Create(fmt.Sprintf("map_%d.dat", id))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	f.Write(buffGz.Bytes())
+
+	return nil
+}
+
+func main() {
+	log.SetFlags(0)
+	args := os.Args
+	progName := args[0]
+	filename := flag.String("img", "", "png file to export into a map.")
+	mapId := flag.Uint("id", 0, "set map id. default is 0")
+	flag.Parse()
+
+	if len(*filename) == 0 {
+		log.Fatalf("usage: %s -img=<image.png>", progName)
+	}
+
+	rawImage, err := os.Open(*filename)
 	if err != nil {
 		log.Fatalf("%s: %v", progName, err)
 	}
-	defer f.Close()
+	defer rawImage.Close()
 
-	f.Write(buffGz.Bytes())
+	img, err := png.Decode(rawImage)
+	if err != nil {
+		log.Fatalf("%s: %v", progName, err)
+	}
+
+	img = resizeImage(img, 128, 128)
+	mapp := generateMap(img)
+	err = export(mapp, *mapId)
+	if err != nil {
+		log.Fatalf("%s: %v", progName, err)
+	}
 }
