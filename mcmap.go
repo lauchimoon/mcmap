@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"image"
 	"image/color"
 	"image/png"
@@ -9,74 +11,94 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Tnze/go-mc/nbt"
 	"golang.org/x/image/draw"
 )
 
 const (
-	BlockData = `1|GRASS|127, 178, 56, 255|Grass Block
-2|SAND|247, 233, 163, 255|Sand
-3|WOOL|199, 199, 199, 255|Cobweb
-4|FIRE|255, 0, 0, 255|Redstone Block
-5|ICE|160, 160, 255, 255|Ice
-6|METAL|167, 167, 167, 255|Block of Iron
-7|PLANT|0, 124, 0, 255|Wheat
-8|SNOW|255, 255, 255, 255|White Wool
-9|CLAY|164, 168, 184, 255|Clay
-10|DIRT|151, 109, 77, 255|Dirt
-11|STONE|112, 112, 112, 255|Stone
-12|WATER|64, 64, 255, 255|Water
-13|WOOD|143, 119, 72, 255|Oak Planks
-14|QUARTZ|255, 252, 245, 255|Quartz Block
-15|COLOR_ORANGE|216, 127, 51, 255|Orange Wool
-16|COLOR_MAGENTA|178, 76, 216, 255|Magenta Wool
-17|COLOR_LIGHT_BLUE|102, 153, 216, 255|Light Blue Wool
-18|COLOR_YELLOW|229, 229, 51, 255|Yellow Wool
-19|COLOR_LIGHT_GREEN|127, 204, 25, 255|Lime Wool
-20|COLOR_PINK|242, 127, 165, 255|Pink Wool
-21|COLOR_GRAY|76, 76, 76, 255|Gray Wool
-22|COLOR_LIGHT_GRAY|153, 153, 153, 255|Light Gray Wool
-23|COLOR_CYAN|76, 127, 153, 255|Cyan Wool
-24|COLOR_PURPLE|127, 63, 178, 255|Purple Wool
-25|COLOR_BLUE|51, 76, 178, 255|Blue Wool
-26|COLOR_BROWN|102, 76, 51, 255|Brown Wool
-27|COLOR_GREEN|102, 127, 51, 255|Green Wool
-28|COLOR_RED|153, 51, 51, 255|Red Wool
-29|COLOR_BLACK|25, 25, 25, 255|Black Wool
-30|GOLD|250, 238, 77, 255|Block of Gold
-31|DIAMOND|92, 219, 213, 255|Block of Diamond
-32|LAPIS|74, 128, 255, 255|Block of Lapis Lazuli
-33|EMERALD|0, 217, 58, 255|Block of Emerald
-34|PODZOL|129, 86, 49, 255|Podzol
-35|NETHER|112, 2, 0, 255|Netherrack
-36|TERRACOTTA_WHITE|209, 177, 161, 255|White Terracotta
-37|TERRACOTTA_ORANGE|159, 82, 36, 255|Orange Terracotta
-38|TERRACOTTA_MAGENTA|149, 87, 108, 255|Magenta Terracotta
-39|TERRACOTTA_LIGHT_BLUE|112, 108, 138, 255|Light Blue Terracotta
-40|TERRACOTTA_YELLOW|186, 133, 36, 255|Yellow Terracotta
-41|TERRACOTTA_LIGHT_GREEN|103, 117, 53, 255|Lime Terracotta
-42|TERRACOTTA_PINK|160, 77, 78, 255|Pink Terracotta
-43|TERRACOTTA_GRAY|57, 41, 35, 255|Gray Terracotta
-44|TERRACOTTA_LIGHT_GRAY|135, 107, 98, 255|Light Gray Terracotta
-45|TERRACOTTA_PURPLE|122, 73, 88, 255|Purple Terracotta
-46|TERRACOTTA_BLUE|76, 62, 92, 255|Blue Terracotta
-47|TERRACOTTA_BROWN|76, 50, 35, 255|Brown Terracotta
-48|TERRACOTTA_GREEN|76, 82, 42, 255|Green Terracotta
-49|TERRACOTTA_RED|142, 60, 46, 255|Red Terracotta
-50|TERRACOTTA_BLACK|37, 22, 16, 255|Black Terracotta
-51|CRIMSON_NYLIUM|189, 48, 49, 255|Crimson Nylium
-52|CRIMSON_STEM|148, 63, 97, 255|Crimson Stem
-53|CRIMSON_HYPHAE|92, 25, 29, 255|Crimson Hyphae
-54|WARPED_NYLIUM|22, 126, 134, 255|Warped Nylium
-55|WARPED_STEM|58, 142, 140, 255|Warped Stem
-56|WARPED_HYPHAE|86, 44, 62, 255|Warped Hyphae
-57|WARPED_WART_BLOCK|20, 180, 133, 255|Warped Wart Block
-58|DEEPSLATE|100, 100, 100, 255|Deepslate
-59|RAW_IRON|216, 175, 147, 255|Block of Raw Iron
-60|GLOW_LICHEN|127, 167, 150, 255|Glow Lichen`
+	BlockData = `6|GRASS|127, 178, 56, 255|Grass Block
+10|SAND|247, 233, 163, 255|Sand
+14|WOOL|199, 199, 199, 255|Cobweb
+18|FIRE|255, 0, 0, 255|Redstone Block
+22|ICE|160, 160, 255, 255|Ice
+26|METAL|167, 167, 167, 255|Block of Iron
+30|PLANT|0, 124, 0, 255|Wheat
+34|SNOW|255, 255, 255, 255|White Wool
+38|CLAY|164, 168, 184, 255|Clay
+42|DIRT|151, 109, 77, 255|Dirt
+46|STONE|112, 112, 112, 255|Stone
+50|WATER|64, 64, 255, 255|Water
+54|WOOD|143, 119, 72, 255|Oak Planks
+58|QUARTZ|255, 252, 245, 255|Quartz Block
+62|COLOR_ORANGE|216, 127, 51, 255|Orange Wool
+66|COLOR_MAGENTA|178, 76, 216, 255|Magenta Wool
+70|COLOR_LIGHT_BLUE|102, 153, 216, 255|Light Blue Wool
+74|COLOR_YELLOW|229, 229, 51, 255|Yellow Wool
+78|COLOR_LIGHT_GREEN|127, 204, 25, 255|Lime Wool
+82|COLOR_PINK|242, 127, 165, 255|Pink Wool
+86|COLOR_GRAY|76, 76, 76, 255|Gray Wool
+90|COLOR_LIGHT_GRAY|153, 153, 153, 255|Light Gray Wool
+94|COLOR_CYAN|76, 127, 153, 255|Cyan Wool
+98|COLOR_PURPLE|127, 63, 178, 255|Purple Wool
+102|COLOR_BLUE|51, 76, 178, 255|Blue Wool
+106|COLOR_BROWN|102, 76, 51, 255|Brown Wool
+110|COLOR_GREEN|102, 127, 51, 255|Green Wool
+114|COLOR_RED|153, 51, 51, 255|Red Wool
+118|COLOR_BLACK|25, 25, 25, 255|Black Wool
+122|GOLD|250, 238, 77, 255|Block of Gold
+126|DIAMOND|92, 219, 213, 255|Block of Diamond
+130|LAPIS|74, 128, 255, 255|Block of Lapis Lazuli
+134|EMERALD|0, 217, 58, 255|Block of Emerald
+138|PODZOL|129, 86, 49, 255|Podzol
+142|NETHER|112, 2, 0, 255|Netherrack
+146|TERRACOTTA_WHITE|209, 177, 161, 255|White Terracotta
+150|TERRACOTTA_ORANGE|159, 82, 36, 255|Orange Terracotta
+154|TERRACOTTA_MAGENTA|149, 87, 108, 255|Magenta Terracotta
+158|TERRACOTTA_LIGHT_BLUE|112, 108, 138, 255|Light Blue Terracotta
+162|TERRACOTTA_YELLOW|186, 133, 36, 255|Yellow Terracotta
+166|TERRACOTTA_LIGHT_GREEN|103, 117, 53, 255|Lime Terracotta
+170|TERRACOTTA_PINK|160, 77, 78, 255|Pink Terracotta
+174|TERRACOTTA_GRAY|57, 41, 35, 255|Gray Terracotta
+178|TERRACOTTA_LIGHT_GRAY|135, 107, 98, 255|Light Gray Terracotta
+182|TERRACOTTA_CYAN|187, 92, 92, 255|Cyan Terracotta
+186|TERRACOTTA_PURPLE|122, 73, 88, 255|Purple Terracotta
+190|TERRACOTTA_BLUE|76, 62, 92, 255|Blue Terracotta
+194|TERRACOTTA_BROWN|76, 50, 35, 255|Brown Terracotta
+198|TERRACOTTA_GREEN|76, 82, 42, 255|Green Terracotta
+202|TERRACOTTA_RED|142, 60, 46, 255|Red Terracotta
+206|TERRACOTTA_BLACK|37, 22, 16, 255|Black Terracotta
+210|CRIMSON_NYLIUM|189, 48, 49, 255|Crimson Nylium
+214|CRIMSON_STEM|148, 63, 97, 255|Crimson Stem
+218|CRIMSON_HYPHAE|92, 25, 29, 255|Crimson Hyphae
+222|WARPED_NYLIUM|22, 126, 134, 255|Warped Nylium
+226|WARPED_STEM|58, 142, 140, 255|Warped Stem
+230|WARPED_HYPHAE|86, 44, 62, 255|Warped Hyphae
+234|WARPED_WART_BLOCK|20, 180, 133, 255|Warped Wart Block
+238|DEEPSLATE|100, 100, 100, 255|Deepslate
+242|RAW_IRON|216, 175, 147, 255|Block of Raw Iron
+246|GLOW_LICHEN|127, 167, 150, 255|Glow Lichen`
 )
 
+type MapData struct {
+	Version int32 `nbt:"DataVersion"`
+	M       Map   `nbt:"data"`
+}
+
+type Map struct {
+	ZCenter           int32  `nbt:"zCenter"`
+	UnlimitedTracking byte   `nbt:"unlimitedTracking"`
+	TrackingPosition  byte   `nbt:"trackingPosition"`
+	Frames            []byte `nbt:"frames,list"`
+	Scale             byte   `nbt:"scale"`
+	Locked            byte   `nbt:"locked"`
+	Dimension         string `nbt:"dimension"`
+	Banners           []byte `nbt:"banners,list"`
+	XCenter           int32  `nbt:"xCenter"`
+	Colors            []byte `nbt:"colors"`
+}
+
 type MapBlock struct {
-	Code  int
+	Code  byte
 	Name  string
 	Color color.RGBA
 	Block string
@@ -93,7 +115,7 @@ type Point struct {
 	Second int
 }
 
-func NewMapBlock(code int, name string, color color.RGBA, block string) MapBlock {
+func NewMapBlock(code byte, name string, color color.RGBA, block string) MapBlock {
 	return MapBlock{
 		Code:  code,
 		Name:  name,
@@ -131,7 +153,7 @@ func loadMapBlocks() []MapBlock {
 		}
 		block := fields[3]
 
-		mapBlocks = append(mapBlocks, NewMapBlock(code, name, color, block))
+		mapBlocks = append(mapBlocks, NewMapBlock(byte(code), name, color, block))
 	}
 
 	return mapBlocks
@@ -269,5 +291,48 @@ func main() {
 
 	img = resizeImage(img, 128, 128)
 	mapp := generateMap(img)
-	encodeMap(mapp)
+	//encodeMap(mapp)
+
+	// Prepare to export map to nbt file
+	exportMap := Map{
+		ZCenter:           0,
+		UnlimitedTracking: 0,
+		TrackingPosition:  0,
+		Frames:            []byte{},
+		Scale:             0,
+		Locked:            1,
+		Dimension:         "minecraft:overworld",
+		Banners:           []byte{},
+		XCenter:           0,
+	}
+
+	// Place colors
+	for y := 0; y < 128; y++ {
+		for x := 0; x < 128; x++ {
+			p := NewPoint(x, y)
+			exportMap.Colors = append(exportMap.Colors, mapp[p].Code)
+		}
+	}
+
+	// Export
+	exportData := MapData{3955, exportMap}
+	var buffNBT bytes.Buffer
+	encoder := nbt.NewEncoder(&buffNBT)
+	err = encoder.Encode(exportData, "")
+	if err != nil {
+		log.Fatalf("%s: %v", progName, err)
+	}
+
+	var buffGz bytes.Buffer
+	gw := gzip.NewWriter(&buffGz)
+	gw.Write(buffNBT.Bytes())
+	gw.Close()
+
+	f, err := os.Create("map_0.dat")
+	if err != nil {
+		log.Fatalf("%s: %v", progName, err)
+	}
+	defer f.Close()
+
+	f.Write(buffGz.Bytes())
 }
